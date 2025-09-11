@@ -11,6 +11,7 @@ import { useAccount, useChainId } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
 import { config } from '@/config/wagmi';
 import { getNetworkInfo, getNetworkTokens, isTestnet, supportsSwap, getApiEndpoint } from '@/config/networks';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { createSwapApi, SwapApiService } from '@/services/api';
 import toast from 'react-hot-toast';
 
@@ -36,6 +37,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   onRefreshData
 }) => {
   const { isConnected, address } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const walletChainId = useChainId();
   // 如果钱包未连接，默认使用Morph测试网
   const chainId = isConnected ? walletChainId : 2810; // 2810 是 Morph Testnet
@@ -498,9 +500,12 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
     // 检查是否连接钱包
     if (!isConnected || !address) {
-      toast.error('❌ 请先连接钱包', {
-        duration: 3000,
-      });
+      // 直接弹出连接钱包窗口（按需求移除 toast）
+      if (openConnectModal) {
+        openConnectModal();
+      } else {
+        console.warn('openConnectModal 不可用，无法自动打开连接钱包弹窗');
+      }
       return;
     }
 
