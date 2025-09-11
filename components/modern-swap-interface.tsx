@@ -39,8 +39,8 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   const { isConnected, address } = useAccount();
   const { openConnectModal } = useConnectModal();
   const walletChainId = useChainId();
-  // 如果钱包未连接，默认使用Morph测试网
-  const chainId = isConnected ? walletChainId : 2810; // 2810 是 Morph Testnet
+  // 如果钱包未连接，默认使用Morph主网
+  const chainId = isConnected ? walletChainId : 2818; // 2818 是 Morph 主网
   const [tokens, setTokens] = useState<Token[]>([]);
   const [fromToken, setFromToken] = useState<Token | null>(null);
   const [toToken, setToToken] = useState<Token | null>(null);
@@ -57,6 +57,12 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [lastQuoteTime, setLastQuoteTime] = useState<number>(0);
   const [, forceUpdate] = useState({});
+
+  // 切换链时清空输入框
+  useEffect(() => {
+    setFromAmount("");
+    setToAmount("");
+  }, [chainId]);
 
   // 向下舍去到指定小数位数（避免四舍五入）
   const floorToDecimals = (value: number, decimals: number = 6): number => {

@@ -186,7 +186,7 @@ export const getSupportedChains = () => {
   const testnetChains = [networks.morphTestnet, networks.bscTestnet];
   
   // 生产环境也显示所有链
-  return [...mainnetChains, ...testnetChains];
+  return [networks.morph];
 };
 
 // 获取网络信息

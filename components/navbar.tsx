@@ -30,6 +30,13 @@ import {
 } from "@/components/icons";
 
 export const Navbar = () => {
+  // 网络ID到本地图标的映射
+  const chainLogoMap: Record<number, string> = {
+    2818: '/morph.png',      // Morph 主网
+    196: '/xlayer.png',      // X Layer 主网
+    2810: '/morph.png',      // Morph Testnet（如有单独 testnet 图标可改）
+    // 97: 不设置，bscTestnet 仍然用 chain.iconUrl
+  };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -37,6 +44,7 @@ export const Navbar = () => {
       maxWidth="full"
       position="sticky"
       className="border-b border-default-200/50"
+      classNames={{ wrapper: 'px-2' }}
       isMenuOpen={isMenuOpen}
       onMenuOpenChange={setIsMenuOpen}
     >
@@ -61,120 +69,66 @@ export const Navbar = () => {
           </NavbarItem>
         </NavbarContent>
 
-        {/* Mobile menu - only show theme settings button, wallet goes in menu */}
-        <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
+        {/* Mobile header - 直接显示钱包和网络按钮，无 menu */}
+        <NavbarContent className="sm:hidden basis-1 pl-4 gap-2" justify="end">
+          <ConnectButton.Custom>
+            {({
+              account,
+              chain,
+              openAccountModal,
+              openChainModal,
+              openConnectModal,
+              authenticationStatus,
+              mounted,
+            }) => {
+              const ready = mounted && authenticationStatus !== 'loading';
+              const connected = ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
+              return (
+                <div className="flex items-center gap-2">
+                  {/* 网络切换按钮，仅显示 logo */}
+                  {connected && chain && (
+                    <button
+                      onClick={openChainModal}
+                      className="flex items-center justify-center w-8 h-8 rounded-full border border-default-200 bg-default-100"
+                      style={{ padding: 0 }}
+                    >
+                      <img
+                        alt={chain.name ?? 'Chain icon'}
+                        src={chainLogoMap[chain.id] || chain.iconUrl || '/vercel.svg'}
+                        style={{ width: 24, height: 24, borderRadius: '50%' }}
+                        onError={e => { e.currentTarget.src = chain.iconUrl || '/vercel.svg'; }}
+                      />
+                    </button>
+                  )}
+                  {/* 钱包连接/地址显示按钮 */}
+                  {!connected ? (
+                    <Button
+                      onPress={openConnectModal}
+                      color="primary"
+                      className="px-3"
+                      size="md"
+                    >
+                      连接钱包
+                    </Button>
+                  ) : (
+                    <Button
+                      onPress={openAccountModal}
+                      variant="flat"
+                      className="px-3 font-mono"
+                      size="md"
+                    >
+                      {account.address.slice(0, 4)}...{account.address.slice(-4)}
+                    </Button>
+                  )}
+                </div>
+              );
+            }}
+          </ConnectButton.Custom>
           <ThemeSettingsButton />
-          <NavbarMenuToggle
-            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-            className="sm:hidden"
-          />
         </NavbarContent>
       </div>
 
-      {/* Mobile Menu */}
-      <NavbarMenu>
-        <div className="mt-2 flex flex-col gap-2">
-          <NavbarMenuItem>
-            <div className="w-full">
-              <p className="text-sm font-medium text-default-600 mb-2">钱包连接</p>
-              <div className="w-full">
-                <ConnectButton.Custom>
-                  {({
-                    account,
-                    chain,
-                    openAccountModal,
-                    openChainModal,
-                    openConnectModal,
-                    authenticationStatus,
-                    mounted,
-                  }) => {
-                    const ready = mounted && authenticationStatus !== 'loading';
-                    const connected = ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
-
-                    return (
-                      <div className="flex flex-col gap-2 w-full">
-                        {(() => {
-                          if (!connected) {
-                            return (
-                              <Button
-                                onPress={openConnectModal}
-                                color="primary"
-                                className="w-full justify-start"
-                                size="md"
-                              >
-                                连接钱包
-                              </Button>
-                            );
-                          }
-
-                          if (chain.unsupported) {
-                            return (
-                              <Button
-                                onPress={openChainModal}
-                                color="warning"
-                                className="w-full justify-start"
-                                size="md"
-                              >
-                                切换网络
-                              </Button>
-                            );
-                          }
-
-                          return (
-                            <div className="flex flex-col gap-2 w-full">
-                              <Button
-                                onPress={openChainModal}
-                                variant="flat"
-                                className="w-full justify-start"
-                                size="md"
-                                startContent={
-                                  chain.hasIcon && (
-                                    <div
-                                      style={{
-                                        background: chain.iconBackground,
-                                        width: 20,
-                                        height: 20,
-                                        borderRadius: 999,
-                                        overflow: 'hidden',
-                                        marginRight: 4,
-                                      }}
-                                    >
-                                      {chain.iconUrl && (
-                                        <img
-                                          alt={chain.name ?? 'Chain icon'}
-                                          src={chain.iconUrl}
-                                          style={{ width: 20, height: 20 }}
-                                        />
-                                      )}
-                                    </div>
-                                  )
-                                }
-                              >
-                                {chain.name}
-                              </Button>
-                              <Button
-                                onPress={openAccountModal}
-                                variant="flat"
-                                className="w-full justify-start"
-                                size="md"
-                              >
-                                {account.displayName}
-                                <span className="text-xs text-default-400 ml-2">
-                                  {account.displayBalance ? ` (${account.displayBalance})` : ''}
-                                </span>
-                              </Button>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    );
-                  }}
-                </ConnectButton.Custom>
-              </div>
-            </div>
-          </NavbarMenuItem>
-        </div>
-      </NavbarMenu>
+  {/* 移除移动端菜单，直接在 header 显示钱包和网络按钮 */}
     </HeroUINavbar>
   );
 };
