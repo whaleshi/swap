@@ -99,13 +99,13 @@ export class SwapApiService {
         console.log('Processed apiTokens:', apiTokens);
 
         // 筛选API代币：找到M代币并去重
-        const mTokenFromApi = apiTokens.find(token => 
+        const mTokenFromApi = apiTokens.find((token: CoinListItem) => 
           token.symbol.toLowerCase() === 'm' && 
           token.address.toLowerCase() === '0x9f79650d31ee7efa6fa5a45ca19b4bf7276d6868'
         );
 
         // 过滤掉API中的M代币，避免重复
-        const otherTokens = apiTokens.filter(token => 
+        const otherTokens = apiTokens.filter((token: CoinListItem) => 
           !(token.symbol.toLowerCase() === 'm' && 
             token.address.toLowerCase() === '0x9f79650d31ee7efa6fa5a45ca19b4bf7276d6868')
         );
@@ -539,10 +539,10 @@ export class SwapApiService {
     try {
       const swapConfig = getSwapContractConfig(this.chainId);
       
-      // 授权一个合理的大数量，但不是最大值（避免显示为NFT）
+      // 默认授权无限大，如果指定了具体数量则使用具体数量
       const approveAmount = amount 
         ? parseUnits(amount, tokenDecimals)
-        : parseUnits('1000000000', tokenDecimals); // 授权10亿个代币
+        : BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935'); // 2^256 - 1
       
       console.log('Approving token:', {
         tokenAddress,

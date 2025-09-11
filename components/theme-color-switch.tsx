@@ -77,7 +77,6 @@ export const ThemeColorSwitch: FC<ThemeColorSwitchProps> = ({ className }) => {
             {themeColors.map((themeColor) => (
               <SelectItem
                 key={themeColor.key}
-                value={themeColor.key}
                 startContent={
                   <div
                     className="w-4 h-4 rounded-full border-2 border-white shadow-sm"

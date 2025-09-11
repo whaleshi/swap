@@ -141,11 +141,13 @@ export const ThemeSettingsDrawer: FC<ThemeSettingsDrawerProps> = ({
                   onPress={() => handleThemeColorChange(themeColor.key)}
                   className={`cursor-pointer transition-all ${
                     selectedThemeColor === themeColor.key
-                      ? "ring-2 ring-offset-2 ring-offset-background shadow-lg scale-105"
+                      ? "shadow-lg scale-105"
                       : "hover:shadow-md hover:scale-102"
                   }`}
                   style={{
-                    ringColor: selectedThemeColor === themeColor.key ? themeColor.color : undefined
+                    boxShadow: selectedThemeColor === themeColor.key 
+                      ? `0 0 0 2px var(--nextui-background), 0 0 0 4px ${themeColor.color}` 
+                      : undefined
                   }}
                 >
                   <CardBody className="p-4 text-center">

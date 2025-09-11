@@ -15,12 +15,13 @@ import { createSwapApi, SwapApiService } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface Token {
+  id: string;
   symbol: string;
   name: string;
   icon: string;
   balance: number;
   price: number;
-  address?: string;
+  address: string;
   decimals: number;
   isNative: boolean;
 }
@@ -55,13 +56,19 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   const [lastQuoteTime, setLastQuoteTime] = useState<number>(0);
   const [, forceUpdate] = useState({});
 
+  // 向下舍去到指定小数位数（避免四舍五入）
+  const floorToDecimals = (value: number, decimals: number = 6): number => {
+    const multiplier = Math.pow(10, decimals);
+    return Math.floor(value * multiplier) / multiplier;
+  };
+
   // 更新选中代币的余额
   const updateTokenBalances = async (fromToken: Token | null, toToken: Token | null) => {
     if (!address || !isConnected || !swapApi) return;
 
     try {
       const promises = [];
-      
+
       if (fromToken) {
         promises.push(
           swapApi.getTokenBalance(address, fromToken).then(balance => {
@@ -70,7 +77,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           })
         );
       }
-      
+
       if (toToken) {
         promises.push(
           swapApi.getTokenBalance(address, toToken).then(balance => {
@@ -79,7 +86,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           })
         );
       }
-      
+
       await Promise.all(promises);
     } catch (error) {
       console.error('Error updating token balances:', error);
@@ -101,27 +108,28 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
         try {
           // 从API获取代币列表
           const coinList = await swapApi.getCoinList();
-          
+
           console.log('Component received coinList:', coinList);
           console.log('CoinList length:', coinList.length);
-          
+
           if (coinList.length === 0) {
             // 如果API没有返回代币，使用静态配置
             const networkTokens = getNetworkTokens(chainId);
             const tokenSymbols = Object.keys(networkTokens);
-            
+
             const tokenList: Token[] = Object.values(networkTokens).map(token => ({
               ...token,
+              id: token.symbol.toLowerCase(),
               balance: Math.random() * 1000,
               price: token.isNative ? (token.symbol === 'ETH' ? 2800 : token.symbol === 'OKB' ? 45 : 400) : 1,
             }));
-            
+
             setTokens(tokenList);
-            
+
             if (tokenList.length >= 2) {
               setFromToken(tokenList[0]);
               setToToken(tokenList[1]);
-              
+
               // 如果钱包已连接，更新初始代币余额
               if (address && isConnected && swapApi) {
                 updateTokenBalances(tokenList[0], tokenList[1]);
@@ -129,7 +137,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
             } else if (tokenList.length === 1) {
               setFromToken(tokenList[0]);
               setToToken(null);
-              
+
               // 如果钱包已连接，更新初始代币余额
               if (address && isConnected && swapApi) {
                 updateTokenBalances(tokenList[0], null);
@@ -141,6 +149,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           // 构建代币列表
           let tokenList: Token[] = coinList.map(coin => {
             return {
+              id: coin.id,
               symbol: coin.symbol,
               name: coin.name,
               icon: coin.icon || (coin.isNative ? '🔷' : '💎'),
@@ -171,16 +180,16 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           //   }));
           //   console.log('Tokens with balances:', tokenList);
           // }
-          
+
           setTokens(tokenList);
           setAllTokens(tokenList);
           setFilteredTokens(tokenList);
-          
+
           // 设置默认代币
           if (tokenList.length >= 2) {
             setFromToken(tokenList[0]);
             setToToken(tokenList[1]);
-            
+
             // 如果钱包已连接，更新初始代币余额
             if (address && isConnected && swapApi) {
               updateTokenBalances(tokenList[0], tokenList[1]);
@@ -188,7 +197,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           } else if (tokenList.length === 1) {
             setFromToken(tokenList[0]);
             setToToken(null);
-            
+
             // 如果钱包已连接，更新初始代币余额
             if (address && isConnected && swapApi) {
               updateTokenBalances(tokenList[0], null);
@@ -200,10 +209,11 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           const networkTokens = getNetworkTokens(chainId);
           const tokenList: Token[] = Object.values(networkTokens).map(token => ({
             ...token,
+            id: token.symbol.toLowerCase(),
             balance: Math.random() * 1000,
             price: token.isNative ? (token.symbol === 'ETH' ? 2800 : 400) : 1,
           }));
-          
+
           setTokens(tokenList);
           setAllTokens(tokenList);
           setFilteredTokens(tokenList);
@@ -239,7 +249,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
     const interval = setInterval(() => {
       // 强制重新渲染来更新时间显示
-      forceUpdate({}); 
+      forceUpdate({});
     }, 1000);
 
     return () => clearInterval(interval);
@@ -249,11 +259,11 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   useEffect(() => {
     // 获取基于交换规则的可用代币
     const availableTokens = getAvailableTokens(isSelectingFrom, fromToken, toToken);
-    
+
     if (!searchKeyword) {
       setFilteredTokens(availableTokens);
     } else {
-      const filtered = availableTokens.filter(token => 
+      const filtered = availableTokens.filter(token =>
         token.symbol.toLowerCase().includes(searchKeyword.toLowerCase()) ||
         token.name.toLowerCase().includes(searchKeyword.toLowerCase())
       );
@@ -266,22 +276,25 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
   const calculateSwapAmount = async (amount: string, from: Token | null, to: Token | null): Promise<string> => {
     if (!amount || isNaN(Number(amount)) || !from || !to || !swapApi) return "";
-    
+
     try {
       // 使用合约获取真实报价
       const amounts = await swapApi.getAmountsOut(amount, from, to);
       if (amounts.length >= 2) {
         setLastQuoteTime(Date.now()); // 更新最后报价时间
-        return Number(amounts[1]).toFixed(6);
+        // 向下舍去，不四舍五入
+        const outputAmount = Number(amounts[1]);
+        return floorToDecimals(outputAmount, 6).toFixed(6);
       }
     } catch (error) {
       console.error('Error getting swap quote:', error);
     }
-    
+
     // 回退到简单价格计算
     const fromValue = Number(amount) * from.price;
     const toValue = fromValue / to.price;
-    return toValue.toFixed(6);
+    // 向下舍去，不四舍五入
+    return floorToDecimals(toValue, 6).toFixed(6);
   };
 
   // 自动刷新报价
@@ -371,7 +384,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       if (!currentToToken) {
         return allTokens;
       }
-      
+
       // 如果to侧有代币，根据to代币筛选from可选项
       if (currentToToken.symbol.toLowerCase() === 'bgb') {
         // 如果to是BGB，from只能选择M
@@ -388,7 +401,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       if (!currentFromToken) {
         return allTokens;
       }
-      
+
       // 如果from侧有代币，根据from代币筛选to可选项
       if (currentFromToken.symbol.toLowerCase() === 'bgb') {
         // 如果from是BGB，to只能选择M
@@ -406,11 +419,11 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   const openTokenSelector = (isFrom: boolean) => {
     setIsSelectingFrom(isFrom);
     setSearchKeyword(""); // 清空搜索
-    
+
     // 根据交换规则更新可选代币列表
     const availableTokens = getAvailableTokens(isFrom, fromToken, toToken);
     setFilteredTokens(availableTokens);
-    
+
     onOpen();
   };
 
@@ -427,7 +440,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
     if (!lastQuoteTime) return "";
     const now = Date.now();
     const ageInSeconds = Math.floor((now - lastQuoteTime) / 1000);
-    
+
     if (ageInSeconds < 5) return "刚刚更新";
     if (ageInSeconds < 60) return `${ageInSeconds}秒前`;
     const ageInMinutes = Math.floor(ageInSeconds / 60);
@@ -441,10 +454,11 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
     try {
       setIsLoading(true);
-      
+
       // 重新读取余额
       const tokensWithBalances = await swapApi.getTokenBalances(address, allTokens);
       const updatedTokens = tokensWithBalances.map(coin => ({
+        id: coin.id,
         symbol: coin.symbol,
         name: coin.name,
         icon: coin.icon || (coin.isNative ? '🔷' : '💎'),
@@ -479,7 +493,9 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
 
   // 执行交换
-  const handleSwap = async () => {
+  const handleSwap = async (skipApprovalCheck: boolean = false) => {
+    console.log('=== handleSwap called ===', { skipApprovalCheck });
+
     // 检查是否连接钱包
     if (!isConnected || !address) {
       toast.error('❌ 请先连接钱包', {
@@ -501,14 +517,14 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
     try {
       const latestBalance = await swapApi.getTokenBalance(address, fromToken);
       console.log(`Latest balance for ${fromToken.symbol}: ${latestBalance}`);
-      
+
       // 更新fromToken余额
       setFromToken(prev => prev ? { ...prev, balance: latestBalance } : null);
-      
+
       // 检查余额是否足够
       const requiredAmount = Number(fromAmount);
       const availableBalance = latestBalance;
-      
+
       console.log('Balance check:', {
         requiredAmount,
         availableBalance,
@@ -532,12 +548,12 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
     try {
       setIsLoading(true);
-      
+
       // 显示开始交换的toast
-      const swapToastId = toast.loading('正在准备交换...', {
+      let swapToastId = toast.loading('正在准备交换...', {
         duration: Infinity,
       });
-      
+
       // 验证代币地址
       if (!fromToken.address || !toToken.address) {
         toast.dismiss(swapToastId);
@@ -553,41 +569,125 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       });
 
       // 1. 检查是否需要授权（仅对ERC20代币）
-      if (!fromToken.isNative) {
+      if (!fromToken.isNative && !skipApprovalCheck) {
         toast.loading('检查代币授权...', {
           id: swapToastId,
         });
-        
+
         console.log('Checking token allowance...');
+        console.log('Token being checked:', {
+          symbol: fromToken.symbol,
+          address: fromToken.address,
+          decimals: fromToken.decimals
+        });
+
         const allowance = await swapApi.checkTokenAllowance(fromToken.address!, address);
         const allowanceFormatted = Number(allowance) / Math.pow(10, fromToken.decimals);
-        
-        console.log(`Current allowance: ${allowanceFormatted}, Required: ${fromAmount}`);
-        
-        if (allowanceFormatted < Number(fromAmount)) {
+        const requiredAmount = Number(fromAmount);
+
+        console.log('Allowance check:', {
+          tokenSymbol: fromToken.symbol,
+          tokenAddress: fromToken.address,
+          currentAllowance: allowanceFormatted,
+          requiredAmount: requiredAmount,
+          rawAllowance: allowance,
+          tokenDecimals: fromToken.decimals,
+          needsApproval: allowanceFormatted < requiredAmount,
+          skipApprovalCheck: skipApprovalCheck
+        });
+
+        // 需要留一些余量，确保授权足够
+        if (allowanceFormatted < requiredAmount * 1.01) {
           console.log('Insufficient allowance, requesting approval...');
-          
-          toast.loading('请求代币授权...', {
-            id: swapToastId,
-          });
-          
-          // 请求授权
+
+          // toast.loading('请求代币授权...', {
+          //   id: swapToastId,
+          // });
+
+          // 请求授权 - 默认授权无限大
+          console.log(`Approving unlimited ${fromToken.symbol} for future swaps`);
           const approveTxHash = await swapApi.approveToken(fromToken.address!, fromToken.decimals);
           console.log('Approve transaction submitted:', approveTxHash);
-          
-          // 关闭loading toast
-          toast.dismiss(swapToastId);
-          
+
           // 显示授权交易提交的toast
           const shortApproveHash = `${approveTxHash.slice(0, 6)}...${approveTxHash.slice(-6)}`;
           toast.success(`授权交易已提交！\n交易哈希: ${shortApproveHash}`, {
             duration: 3000,
           });
-          
-          toast.loading('请等待授权交易确认后再次尝试交换...', {
-            duration: 3000,
+
+          // 显示等待授权确认的toast
+          const approveConfirmToastId = toast.loading('等待授权交易确认...', {
+            duration: Infinity,
           });
-          return;
+
+          try {
+            console.log('Waiting for approve transaction confirmation...');
+            const approveReceipt = await waitForTransactionReceipt(config, {
+              hash: approveTxHash as `0x${string}`,
+              chainId: chainId,
+            });
+
+            console.log('Approve transaction confirmed:', approveReceipt);
+
+            if (approveReceipt.status === 'success') {
+              // 关闭授权确认toast
+              toast.dismiss(approveConfirmToastId);
+
+              toast.success('✅ 授权成功！继续交换...', {
+                duration: 2000,
+              });
+
+              // 继续执行交换前，先验证授权是否真的成功
+              console.log('Authorization confirmed, verifying allowance before continuing...');
+
+              // 验证授权状态
+              setTimeout(async () => {
+                try {
+                  const newAllowance = await swapApi.checkTokenAllowance(fromToken.address!, address);
+                  const newAllowanceFormatted = Number(newAllowance) / Math.pow(10, fromToken.decimals);
+                  const requiredAmount = Number(fromAmount);
+
+                  console.log('Post-approval allowance check:', {
+                    newAllowance: newAllowanceFormatted,
+                    requiredAmount: requiredAmount,
+                    sufficient: newAllowanceFormatted >= requiredAmount
+                  });
+
+                  if (newAllowanceFormatted >= requiredAmount) {
+                    console.log('Allowance verified, continuing with swap...');
+                    handleSwap(true); // 跳过授权检查
+                  } else {
+                    console.error('Allowance still insufficient after approval!');
+                    toast.error('❌ 授权未生效，请重试', {
+                      duration: 3000,
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error verifying allowance:', error);
+                  toast.error('❌ 验证授权失败，请重试', {
+                    duration: 3000,
+                  });
+                }
+              }, 2000); // 增加延迟确保链状态更新
+
+              return; // 退出当前执行
+            } else {
+              // 关闭授权确认toast
+              toast.dismiss(approveConfirmToastId);
+
+              toast.error('❌ 授权失败，请重试', {
+                duration: 3000,
+              });
+              return;
+            }
+          } catch (approveError: any) {
+            toast.dismiss(approveConfirmToastId);
+            console.error('Approve confirmation failed:', approveError);
+            toast.error('⚠️ 授权确认超时，请稍后重试交换', {
+              duration: 3000,
+            });
+            return;
+          }
         }
       }
 
@@ -595,19 +695,19 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       toast.loading('获取交换报价...', {
         id: swapToastId,
       });
-      
+
       console.log('Getting swap quote...');
       const amounts = await swapApi.getAmountsOut(fromAmount, fromToken, toToken);
       if (amounts.length < 2 || Number(amounts[1]) === 0) {
         toast.dismiss(swapToastId);
         throw new Error(`无法获取交换报价，可能没有足够的流动性或交易对不存在\n返回的数量: ${amounts.join(', ')}`);
       }
-      
+
       const expectedOutput = amounts[1];
       // 增加额外的滑点buffer来确保交易成功
       const effectiveSlippage = slippage + 1; // 增加1%的buffer
       const minOutputWithSlippage = (Number(expectedOutput) * (1 - effectiveSlippage / 100)).toString();
-      
+
       console.log(`Expected output: ${expectedOutput}, Min output with slippage: ${minOutputWithSlippage}`);
       console.log('Slippage calculation details:', {
         expectedOutputNumber: Number(expectedOutput),
@@ -622,9 +722,9 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       toast.loading('正在提交交易...', {
         id: swapToastId,
       });
-      
+
       console.log('Executing swap transaction...');
-      
+
       // 打印swap参数
       console.log('=== Swap Parameters ===');
       console.log('From Token:', {
@@ -645,7 +745,16 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       console.log('User Address:', address);
       console.log('Slippage:', slippage + '%');
       console.log('Chain ID:', chainId);
+      console.log('Swap Path:', [fromToken.address, toToken.address]);
       console.log('======================');
+
+      // 验证代币地址是否正确
+      if (!fromToken.address || !toToken.address) {
+        toast.error('❌ 代币地址无效', {
+          duration: 3000,
+        });
+        return;
+      }
 
       let swapTxHash: string;
       try {
@@ -660,28 +769,28 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
         console.log('Swap transaction submitted:', swapTxHash);
       } catch (swapError: any) {
         console.error('Swap transaction failed:', swapError);
-        
+
         // 关闭loading toast
         toast.dismiss(swapToastId);
-        
+
         // 抛出错误到外层catch处理
         throw swapError;
       }
-      
+
       // 关闭loading toast
       toast.dismiss(swapToastId);
-      
+
       // 显示交易提交成功的toast
       const shortSwapHash = `${swapTxHash.slice(0, 6)}...${swapTxHash.slice(-6)}`;
       toast.success(`交换交易已提交！\n交易哈希: ${shortSwapHash}`, {
         duration: 3000,
       });
-      
+
       // 显示等待确认的loading toast
       const confirmToastId = toast.loading('等待交易确认中...', {
         duration: Infinity, // 不自动消失，等待交易确认
       });
-      
+
       // 4. 等待交易确认
       try {
         console.log('Waiting for transaction confirmation...');
@@ -689,17 +798,17 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           hash: swapTxHash as `0x${string}`,
           chainId: chainId,
         });
-        
+
         // 关闭等待确认的toast
         toast.dismiss(confirmToastId);
-        
+
         console.log('Transaction confirmed:', receipt);
-        
+
         if (receipt.status === 'success') {
           toast.success(`🎉 交换成功！\n交易哈希: ${shortSwapHash}`, {
             duration: 3000,
           });
-          
+
           // 更新余额
           if (fromToken && toToken) {
             updateTokenBalances(fromToken, toToken);
@@ -712,17 +821,17 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       } catch (confirmError: any) {
         // 关闭等待确认的toast
         toast.dismiss(confirmToastId);
-        
+
         console.error('Transaction confirmation failed:', confirmError);
         toast.error(`⚠️ 交易确认超时或失败\n交易哈希: ${shortSwapHash}\n请手动检查交易状态`, {
           duration: 3000,
         });
       }
-      
+
       // 清空输入
       setFromAmount("");
       setToAmount("");
-      
+
       console.log('Swap process completed');
     } catch (error: any) {
       console.error('Swap failed - Full error:', error);
@@ -730,16 +839,16 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       console.error('Error details:', error?.details);
       console.error('Error code:', error?.code);
       console.error('Error reason:', error?.reason);
-      
+
       // 关闭可能存在的loading toast
       toast.dismiss();
-      
+
       // 显示用户友好的错误消息
       let errorMessage = '交换失败';
       let toastType: 'error' | 'warning' = 'error';
-      
+
       const errorStr = String(error?.message || error?.reason || error || '').toLowerCase();
-      
+
       if (errorStr.includes('user rejected') || errorStr.includes('user denied') || errorStr.includes('rejected')) {
         errorMessage = '用户取消了交易';
         toastType = 'warning';
@@ -751,14 +860,14 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
         errorMessage = '交易对流动性不足';
       } else if (errorStr.includes('gas') || errorStr.includes('fee')) {
         errorMessage = 'Gas费用不足';
-      } else if (errorStr.includes('allowance') || errorStr.includes('approval')) {
+      } else if (errorStr.includes('allowance') || errorStr.includes('approval') || errorStr.includes('transfer_from_failed')) {
         errorMessage = '代币授权不足，请重新授权';
       } else if (errorStr.includes('deadline')) {
         errorMessage = '交易超时，请重试';
       }
-      
+
       console.log('Showing error toast:', errorMessage);
-      
+
       if (toastType === 'error') {
         toast.error(`❌ ${errorMessage}${error?.message ? `\n详细: ${error.message.substring(0, 80)}...` : ''}`, {
           duration: 3000,
@@ -787,7 +896,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
           <CardBody className="p-8 text-center">
             <div className="mb-4">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="mx-auto text-warning">
-                <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
             <h3 className="text-xl font-semibold mb-2">不支持的网络</h3>
@@ -844,8 +953,8 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
               className="bg-default-100 hover:bg-default-200 border border-default-300 hover:border-primary"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M3 3v18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M7 12l4-4 4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 3v18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M7 12l4-4 4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Button>
             <Button
@@ -857,8 +966,8 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
               className="bg-default-100 hover:bg-default-200 border border-default-300 hover:border-primary"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M23 4v6l-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M23 4v6l-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Button>
             <Button
@@ -869,8 +978,8 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
               className="bg-default-100 hover:bg-default-200 border border-default-300 hover:border-primary"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
-                <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="currentColor" strokeWidth="2"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="currentColor" strokeWidth="2" />
               </svg>
             </Button>
           </div>
@@ -890,11 +999,11 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                   className="text-default-400 hover:text-default-600"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </Button>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <Button
@@ -925,7 +1034,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                     10%
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-default-600 whitespace-nowrap">自定义:</span>
                   <Input
@@ -949,12 +1058,12 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                     }}
                   />
                 </div>
-                
+
                 <div className="h-6 flex items-center">
                   {slippage > 5 && (
                     <div className="text-xs text-warning flex items-center gap-1">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                       高滑点可能导致不利交易
                     </div>
@@ -968,7 +1077,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
         {/* Swap Card */}
         <Card className="bg-background/60 backdrop-blur-xl border border-default-200/50 shadow-2xl">
           <CardBody className="p-6 space-y-1">
-            
+
             {/* From Token */}
             <div className="relative">
               <div className="flex justify-between items-center mb-3">
@@ -977,7 +1086,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                   Balance: {!isConnected ? '-' : (fromToken?.balance.toFixed(4) || '0.0000')} {fromToken?.symbol || ''}
                 </span>
               </div>
-              
+
               <div className="bg-default-100/50 backdrop-blur-sm rounded-2xl p-4 border border-default-200/30">
                 <div className="flex items-start gap-3">
                   <Button
@@ -989,14 +1098,14 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                     <div className="flex items-center gap-1.5">
                       {fromToken?.icon ? (
                         fromToken.icon.startsWith('http') || fromToken.icon.startsWith('/') ? (
-                          <img 
-                            src={fromToken.icon} 
+                          <img
+                            src={fromToken.icon}
                             alt={fromToken.symbol}
                             className="w-5 h-5 rounded-full object-cover"
                             onError={(e) => {
                               console.log('Image failed to load:', fromToken.icon);
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling!.style.display = 'block';
+                              (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              ((e.currentTarget as HTMLImageElement).nextElementSibling as HTMLElement)!.style.display = 'block';
                             }}
                           />
                         ) : (
@@ -1009,7 +1118,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                       <div className="font-semibold text-xs">{fromToken?.symbol || 'Select'}</div>
                     </div>
                   </Button>
-                  
+
                   <div className="flex-1">
                     <Input
                       type="number"
@@ -1031,7 +1140,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                     )}
                   </div>
                 </div>
-                
+
                 {/* 快捷输入按钮 */}
                 {fromToken && isConnected && (
                   <div className="flex gap-2 mt-3 justify-end">
@@ -1062,7 +1171,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                     <Button
                       size="sm"
                       variant="flat"
-                      onPress={() => handleFromAmountChange(fromToken.balance.toString())}
+                      onPress={() => handleFromAmountChange(floorToDecimals(fromToken.balance, 6).toString())}
                       className="bg-default-200/50 hover:bg-primary/20 text-xs min-w-0 px-3 h-7"
                     >
                       MAX
@@ -1081,10 +1190,10 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                 className="bg-default-100/50 hover:bg-default-200 border border-default-300/50 hover:border-default-400 transition-all duration-300 hover:scale-105 hover:rotate-90 w-12 h-12 rounded-full group"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-default-600 group-hover:text-primary transition-all duration-300">
-                  <path d="M8 3L4 7l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M16 21l4-4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M20 17H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8 3L4 7l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M16 21l4-4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M20 17H4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Button>
             </div>
@@ -1097,7 +1206,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                   Balance: {!isConnected ? '-' : (toToken?.balance.toFixed(4) || '0.0000')} {toToken?.symbol || ''}
                 </span>
               </div>
-              
+
               <div className="bg-default-100/50 backdrop-blur-sm rounded-2xl p-4 border border-default-200/30">
                 <div className="flex items-start gap-3">
                   <Button
@@ -1109,14 +1218,14 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                     <div className="flex items-center gap-1.5">
                       {toToken?.icon ? (
                         toToken.icon.startsWith('http') || toToken.icon.startsWith('/') ? (
-                          <img 
-                            src={toToken.icon} 
+                          <img
+                            src={toToken.icon}
                             alt={toToken.symbol}
                             className="w-5 h-5 rounded-full object-cover"
                             onError={(e) => {
                               console.log('Image failed to load:', toToken.icon);
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling!.style.display = 'block';
+                              (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              ((e.currentTarget as HTMLImageElement).nextElementSibling as HTMLElement)!.style.display = 'block';
                             }}
                           />
                         ) : (
@@ -1129,7 +1238,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                       <div className="font-semibold text-xs">{toToken?.symbol || 'Select'}</div>
                     </div>
                   </Button>
-                  
+
                   <div className="flex-1">
                     <Input
                       type="number"
@@ -1157,9 +1266,9 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
             {/* Exchange Rate */}
             {fromAmount && toAmount && (
               <div className="flex justify-center py-3">
-                <Chip 
-                  variant="flat" 
-                  size="sm" 
+                <Chip
+                  variant="flat"
+                  size="sm"
                   className="bg-default-100 text-primary border border-default-300"
                 >
                   {getExchangeRate()}
@@ -1175,20 +1284,20 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                 className="w-full h-14 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
                 isDisabled={(!isConnected && fromAmount && fromToken && toToken) ? false : (!fromAmount || Number(fromAmount) === 0 || !fromToken || !toToken || isLoading)}
                 isLoading={isLoading}
-                onPress={handleSwap}
+                onPress={() => handleSwap()}
               >
                 {isLoading
                   ? "Processing..."
                   : !isConnected
-                  ? "连接钱包"
-                  : !fromToken || !toToken
-                  ? "选择代币"
-                  : !fromAmount || Number(fromAmount) === 0 
-                  ? "输入数量" 
-                  : `交换 ${fromToken.symbol} → ${toToken.symbol}`
+                    ? "连接钱包"
+                    : !fromToken || !toToken
+                      ? "选择代币"
+                      : !fromAmount || Number(fromAmount) === 0
+                        ? "输入数量"
+                        : `交换 ${fromToken.symbol} → ${toToken.symbol}`
                 }
               </Button>
-              
+
             </div>
 
             {/* Additional Info */}
@@ -1200,7 +1309,10 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span>Minimum received</span>
-                  <span>{(Number(toAmount) * (1 - slippage / 100)).toFixed(6)} {toToken.symbol}</span>
+                  <span>{(() => {
+                    const minReceived = Number(toAmount) * (1 - slippage / 100);
+                    return floorToDecimals(minReceived, 6).toFixed(6);
+                  })()} {toToken.symbol}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Slippage tolerance</span>
@@ -1225,9 +1337,9 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
       </div>
 
       {/* Token Selection Modal */}
-      <Modal 
-        isOpen={isOpen} 
-        onClose={onClose} 
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
         placement="center"
         classNames={{
           base: "bg-background/95 backdrop-blur-xl",
@@ -1249,7 +1361,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                 variant="bordered"
                 startContent={
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-default-400">
-                    <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 }
                 classNames={{
@@ -1258,7 +1370,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                 }}
               />
             </div>
-            
+
             <div className="space-y-1 max-h-96 overflow-y-auto">
               {filteredTokens.map((token) => (
                 <Button
@@ -1271,14 +1383,14 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                     <div className="w-10 h-10 flex items-center justify-center">
                       {token.icon ? (
                         token.icon.startsWith('http') || token.icon.startsWith('/') ? (
-                          <img 
-                            src={token.icon} 
+                          <img
+                            src={token.icon}
                             alt={token.symbol}
                             className="w-8 h-8 rounded-full object-cover"
                             onError={(e) => {
                               console.log('Image failed to load:', token.icon);
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling!.style.display = 'block';
+                              (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              ((e.currentTarget as HTMLImageElement).nextElementSibling as HTMLElement)!.style.display = 'block';
                             }}
                           />
                         ) : (
@@ -1302,7 +1414,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                   </div>
                 </Button>
               ))}
-              
+
               {filteredTokens.length === 0 && (
                 <div className="text-center py-8 text-default-500">
                   <div className="mb-2">😔</div>
