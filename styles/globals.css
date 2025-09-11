@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@import '@rainbow-me/rainbowkit/styles.css';
+
+@config "../tailwind.config.js";
+
+/* 主题色变量 */
+:root {
+    --theme-primary: 59 130 246; /* 蓝色 #3b82f6 */
+    --theme-primary-foreground: 255 255 255;
+}
+
+.blue-theme {
+    --theme-primary: 59 130 246; /* #3b82f6 */
+}
+
+.green-theme {
+    --theme-primary: 34 197 94; /* #22c55e */
+}
+
+.purple-theme {
+    --theme-primary: 168 85 247; /* #a855f7 */
+}
+
+.orange-theme {
+    --theme-primary: 249 115 22; /* #f97316 */
+}
+
+.pink-theme {
+    --theme-primary: 236 72 153; /* #ec4899 */
+}
+
+/* 自定义最大宽度 */
+.max-w-1440 {
+  max-width: 1440px;
+}
+
+/* 重写 HeroUI 的 primary 颜色 */
+[data-theme="light"] .bg-primary,
+[data-theme="dark"] .bg-primary,
+.light .bg-primary,
+.dark .bg-primary {
+    background-color: rgb(var(--theme-primary));
+}
+
+[data-theme="light"] .text-primary,
+[data-theme="dark"] .text-primary,
+.light .text-primary,
+.dark .text-primary {
+    color: rgb(var(--theme-primary));
+}
+
+[data-theme="light"] .border-primary,
+[data-theme="dark"] .border-primary,
+.light .border-primary,
+.dark .border-primary {
+    border-color: rgb(var(--theme-primary));
+}
+
+/* 重写 hover 状态下的边框颜色 */
+.hover\:border-primary:hover {
+    border-color: rgb(var(--theme-primary)) !important;
+}
+
+/* 重写 group-hover 状态下的文字颜色 */
+.group:hover .group-hover\:text-primary {
+    color: rgb(var(--theme-primary)) !important;
+}
+
+/* 重写光标颜色 */
+.caret-primary {
+    caret-color: rgb(var(--theme-primary)) !important;
+}
+
+/* 彻底去掉输入框背景色 - 最强制规则 */
+[data-slot="input-wrapper"] {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+[data-slot="input-wrapper"]:hover,
+[data-slot="input-wrapper"]:focus,
+[data-slot="input-wrapper"]:active,
+[data-slot="input-wrapper"][data-focus="true"],
+[data-slot="input-wrapper"][data-hover="true"],
+[data-slot="input-wrapper"][data-focus-visible="true"],
+[data-slot="input-wrapper"][data-focused="true"] {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+input[type="number"] {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+input[type="number"]:hover,
+input[type="number"]:focus,
+input[type="number"]:active,
+input[type="number"]:focus-visible {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+/* 文本选择样式 - 最强制规则 */
+* {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+input::selection,
+input[type="number"]::selection,
+[data-slot="input"] input::selection {
+    background: rgba(var(--theme-primary), 0.2) !important;
+    background-color: rgba(var(--theme-primary), 0.2) !important;
+    color: rgb(var(--theme-primary)) !important;
+}
+
+input::-moz-selection,
+input[type="number"]::-moz-selection,
+[data-slot="input"] input::-moz-selection {
+    background: rgba(var(--theme-primary), 0.2) !important;
+    background-color: rgba(var(--theme-primary), 0.2) !important;
+    color: rgb(var(--theme-primary)) !important;
+}
+
+/* 全局选择样式 */
+::selection {
+    background: rgba(var(--theme-primary), 0.15) !important;
+    color: rgb(var(--theme-primary)) !important;
+}
+
+::-moz-selection {
+    background: rgba(var(--theme-primary), 0.15) !important;
+    color: rgb(var(--theme-primary)) !important;
+}
+
+/* 去掉数字输入框的上下箭头 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
