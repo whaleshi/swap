@@ -58,6 +58,18 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   const [lastQuoteTime, setLastQuoteTime] = useState<number>(0);
   const [, forceUpdate] = useState({});
 
+  // 切换币种后自动刷新报价
+  useEffect(() => {
+    if (fromAmount && fromToken && toToken) {
+      (async () => {
+        const result = await calculateSwapAmount(fromAmount, fromToken, toToken);
+        setToAmount(result);
+      })();
+    } else {
+      setToAmount("");
+    }
+  }, [fromToken, toToken]);
+
   // 切换链时清空输入框
   useEffect(() => {
     setFromAmount("");
@@ -956,7 +968,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
             )}
           </div>
           <div className="flex gap-2">
-            <Button
+            {/* <Button
               isIconOnly
               variant="flat"
               size="sm"
@@ -967,7 +979,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                 <path d="M3 3v18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M7 12l4-4 4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </Button>
+            </Button> */}
             <Button
               isIconOnly
               variant="flat"
