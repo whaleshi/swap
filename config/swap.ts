@@ -7,9 +7,9 @@ export const SWAP_CONTRACT_CONFIG = {
     address: '0x73265ce577783A4Ae11cC4d58817a3b26B685863' as `0x${string}`,
     abi: UniswapV2ABI,
   },
-  // 主网合约地址（暂时使用测试网地址）
+  // 主网合约地址
   mainnet: {
-    address: '0x73265ce577783A4Ae11cC4d58817a3b26B685863' as `0x${string}`,
+    address: '0x3ab6F687F8C2EcA42f0Eb6dE5a8BF8deE077A7C2' as `0x${string}`,
     abi: UniswapV2ABI,
   },
 } as const;

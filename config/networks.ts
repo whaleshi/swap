@@ -66,9 +66,9 @@ export const networkConfig = {
     color: '#3b82f6',
     isTestnet: false,
     faucet: null,
-    supportedTokens: ['ETH', 'USDT', 'USDC', 'WETH'],
+    supportedTokens: ['BGB', 'USDT', 'USDC'],
     apiEndpoint: 'https://gate.game.com',
-    supportsSwap: false,
+    supportsSwap: true,
   },
   [networks.xlayer.id]: {
     name: 'X Layer',
@@ -109,13 +109,13 @@ export const networkConfig = {
 export const tokenConfig = {
   // Morph 主网代币
   [networks.morph.id]: {
-    ETH: {
-      symbol: 'ETH',
-      name: 'Ethereum',
+    BGB: {
+      symbol: 'BGB',
+      name: 'BGB',
       decimals: 18,
-      address: '0x0000000000000000000000000000000000000000', // 原生代币
-      icon: '🔷',
-      isNative: true,
+      address: '0x55d1f1879969bdbB9960d269974564C58DBc3238',
+      icon: '/bgb.png',
+      isNative: false,
     },
     USDT: {
       symbol: 'USDT',

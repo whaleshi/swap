@@ -98,28 +98,35 @@ export class SwapApiService {
 
         console.log('Processed apiTokens:', apiTokens);
 
+        // 根据网络确定M代币地址
+        const mTokenAddress = this.chainId === 2818 
+          ? '0x13345d9e5a0ce52f08c8667dd1dbd60de0f46868' // Morph 主网
+          : '0x9f79650d31ee7efa6fa5a45ca19b4bf7276d6868'; // Morph 测试网
+
         // 筛选API代币：找到M代币并去重
         const mTokenFromApi = apiTokens.find((token: CoinListItem) => 
           token.symbol.toLowerCase() === 'm' && 
-          token.address.toLowerCase() === '0x9f79650d31ee7efa6fa5a45ca19b4bf7276d6868'
+          token.address.toLowerCase() === mTokenAddress.toLowerCase()
         );
 
         // 过滤掉API中的M代币，避免重复
         const otherTokens = apiTokens.filter((token: CoinListItem) => 
           !(token.symbol.toLowerCase() === 'm' && 
-            token.address.toLowerCase() === '0x9f79650d31ee7efa6fa5a45ca19b4bf7276d6868')
+            token.address.toLowerCase() === mTokenAddress.toLowerCase())
         );
 
         // 手动添加配置的代币
         const configuredTokens = [];
         
-        // 添加BGB代币
+        // 添加BGB代币 - 根据网络使用不同地址
         const bgbToken: CoinListItem = {
           id: 'bgb',
           symbol: 'BGB',
           name: 'BGB',
           decimals: 18,
-          address: '0x1670F6eb896191C385C5609C78eD8C9fD8514f56',
+          address: this.chainId === 2818 
+            ? '0x55d1f1879969bdbB9960d269974564C58DBc3238' // Morph 主网
+            : '0x1670F6eb896191C385C5609C78eD8C9fD8514f56', // Morph 测试网
           icon: '/bgb.png',
           isNative: false,
           price: 4.98,
@@ -134,7 +141,7 @@ export class SwapApiService {
           symbol: 'M',
           name: 'Mood',
           decimals: 18,
-          address: '0x9f79650d31ee7efa6fa5a45ca19b4bf7276d6868',
+          address: mTokenAddress,
           icon: 'https://newgame.mypinata.cloud/ipfs/QmdvUMNAU7yNAfceRtTcxnpTbripyucJEF6unkwnouLAgR',
           isNative: false,
           price: 1,
@@ -157,7 +164,30 @@ export class SwapApiService {
   // 回退代币列表
   private getFallbackTokenList(): CoinListItem[] {
     // 根据网络返回默认代币列表
-    if (this.chainId === 2818 || this.chainId === 2810) { // Morph 主网和测试网
+    if (this.chainId === 2818) { // Morph 主网
+      return [
+        {
+          id: 'bgb',
+          symbol: 'BGB',
+          name: 'BGB',
+          decimals: 18,
+          address: '0x55d1f1879969bdbB9960d269974564C58DBc3238',
+          icon: '/bgb.png',
+          isNative: false,
+          price: 4.98,
+        },
+        {
+          id: 'm',
+          symbol: 'M',
+          name: 'Mood',
+          decimals: 18,
+          address: '0x13345d9e5a0ce52f08c8667dd1dbd60de0f46868',
+          icon: 'https://newgame.mypinata.cloud/ipfs/QmdvUMNAU7yNAfceRtTcxnpTbripyucJEF6unkwnouLAgR',
+          isNative: false,
+          price: 1,
+        },
+      ];
+    } else if (this.chainId === 2810) { // Morph 测试网
       return [
         {
           id: 'bgb',
