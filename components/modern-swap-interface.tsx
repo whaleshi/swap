@@ -30,11 +30,13 @@ interface Token {
 interface ModernSwapInterfaceProps {
   onToggleChart?: () => void;
   onRefreshData?: () => void;
+  onTokenChange?: (tokenAddress: string, tokenSymbol: string) => void;
 }
 
 export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
   onToggleChart,
-  onRefreshData
+  onRefreshData,
+  onTokenChange
 }) => {
   const { isConnected, address } = useAccount();
   const { openConnectModal } = useConnectModal();
@@ -75,6 +77,13 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
     setFromAmount("");
     setToAmount("");
   }, [chainId]);
+
+  // 监听toToken变化，传递给图表 - 使用To Token作为K线图数据源
+  useEffect(() => {
+    if (toToken && onTokenChange) {
+      onTokenChange(toToken.address, toToken.symbol);
+    }
+  }, [toToken, onTokenChange]);
 
   // 向下舍去到指定小数位数（避免四舍五入）
   const floorToDecimals = (value: number, decimals: number = 6): number => {
@@ -952,7 +961,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
   return (
     <>
-      <div className="w-full max-w-md mx-auto">
+      <div className="w-full max-w-lg mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -968,7 +977,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
             )}
           </div>
           <div className="flex gap-2">
-            {/* <Button
+            <Button
               isIconOnly
               variant="flat"
               size="sm"
@@ -979,7 +988,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
                 <path d="M3 3v18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M7 12l4-4 4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </Button> */}
+            </Button>
             <Button
               isIconOnly
               variant="flat"
@@ -1099,7 +1108,7 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
         {/* Swap Card */}
         <Card className="bg-background/60 backdrop-blur-xl border border-default-200/50 shadow-2xl">
-          <CardBody className="p-6 space-y-1">
+          <CardBody className="p-8 space-y-2">
 
             {/* From Token */}
             <div className="relative">

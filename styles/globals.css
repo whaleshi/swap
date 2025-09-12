@@ -145,3 +145,23 @@ input[type="number"] {
     -moz-appearance: textfield;
     appearance: textfield;
 }
+
+/* K线图样式 - 隐藏多余的canvas */
+.kline-chart-container {
+    overflow: hidden;
+}
+
+/* 只显示第一个canvas，隐藏其他的 */
+.kline-chart-container canvas:not(:first-child) {
+    display: none !important;
+}
+
+/* 或者尝试根据位置隐藏上方的空白canvas */
+.kline-chart-container > div:first-child {
+    display: none !important;
+}
+
+/* 重置canvas容器样式 */
+.kline-chart-container > div {
+    height: 100% !important;
+}

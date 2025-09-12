@@ -6,6 +6,10 @@ import { useState } from "react";
 
 export default function Home() {
   const [showChart, setShowChart] = useState(false);
+  const [selectedToken, setSelectedToken] = useState({
+    address: "0x13345D9E5A0Ce52F08c8667DD1Dbd60DE0F46868",
+    symbol: "M"
+  });
 
   const handleToggleChart = () => {
     setShowChart(!showChart);
@@ -15,6 +19,10 @@ export default function Home() {
     // 这里可以添加刷新数据的逻辑
     console.log("Refreshing data...");
   };
+
+  const handleTokenChange = (tokenAddress: string, tokenSymbol: string) => {
+    setSelectedToken({ address: tokenAddress, symbol: tokenSymbol });
+  };
   return (
     <div className="min-h-screen w-full">
       {/* 移动端布局 */}
@@ -22,8 +30,9 @@ export default function Home() {
         <ModernSwapInterface 
           onToggleChart={handleToggleChart}
           onRefreshData={handleRefreshData}
+          onTokenChange={handleTokenChange}
         />
-        {showChart && <TradingChart />}
+        {showChart && <TradingChart tokenAddress={selectedToken.address} tokenSymbol={selectedToken.symbol} />}
       </div>
 
       {/* PC端布局 */}
@@ -32,15 +41,16 @@ export default function Home() {
           {/* 左侧 K线图 */}
           {showChart && (
             <div className="flex-1 p-4 pt-8">
-              <TradingChart />
+              <TradingChart tokenAddress={selectedToken.address} tokenSymbol={selectedToken.symbol} />
             </div>
           )}
           
           {/* 右侧 Swap */}
-          <div className={`${showChart ? 'w-[480px]' : 'flex-1 max-w-md mx-auto'} p-4 pt-6`}>
+          <div className={`${showChart ? 'w-[520px]' : 'flex-1 max-w-lg mx-auto'} p-4 pt-6`}>
             <ModernSwapInterface 
               onToggleChart={handleToggleChart}
               onRefreshData={handleRefreshData}
+              onTokenChange={handleTokenChange}
             />
           </div>
         </div>
