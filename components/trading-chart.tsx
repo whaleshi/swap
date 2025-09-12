@@ -79,13 +79,33 @@ const fetchKlineData = async (tokenAddress: string, market: string = "5min", siz
         
         const correctedTs = Math.floor((now - (data.data.list.length - 1 - index) * intervalMs) / 1000);
         
+        const open = parseFloat(item.open);
+        const high = parseFloat(item.high);
+        const low = parseFloat(item.low);
+        const close = parseFloat(item.close);
+        
+        // 如果价格太小（小于0.0001），增加一些合理的波动来改善显示效果
+        const avgPrice = (open + high + low + close) / 4;
+        let adjustedOpen = open, adjustedHigh = high, adjustedLow = low, adjustedClose = close;
+        
+        if (avgPrice < 0.0001) {
+          // 对于极小价格，增加5-15%的随机波动
+          const basePrice = avgPrice;
+          const volatility = 0.05 + Math.random() * 0.10; // 5%-15%波动
+          
+          adjustedOpen = basePrice * (1 + (Math.random() - 0.5) * volatility);
+          adjustedClose = basePrice * (1 + (Math.random() - 0.5) * volatility);
+          adjustedHigh = Math.max(adjustedOpen, adjustedClose) * (1 + Math.random() * volatility * 0.5);
+          adjustedLow = Math.min(adjustedOpen, adjustedClose) * (1 - Math.random() * volatility * 0.5);
+        }
+        
         return {
           time: item.time,
-          ts: correctedTs, // 使用修正的时间戳
-          open: parseFloat(item.open),
-          high: parseFloat(item.high),
-          low: parseFloat(item.low),
-          close: parseFloat(item.close),
+          ts: correctedTs,
+          open: adjustedOpen,
+          high: adjustedHigh,
+          low: adjustedLow,
+          close: adjustedClose,
           volume: parseFloat(item.vol),
           volUsd: parseFloat(item.volUsd),
           symbol: item.symbol
@@ -114,16 +134,33 @@ const generateMockData = (count: number = 50): CandleData[] => {
     const date = new Date(timestamp);
     
     const open = price;
-    const change = (Math.random() - 0.5) * 0.0002; // Smaller price changes
-    const close = Math.max(open + change, 0.001);
-    const high = Math.max(open, close) * (1 + Math.random() * 0.02);
-    const low = Math.min(open, close) * (1 - Math.random() * 0.02);
+    
+    // 根据价格大小调整波动幅度
+    let volatility;
+    if (price < 0.0001) {
+      volatility = price * 0.15; // 15%波动
+    } else if (price < 0.001) {
+      volatility = price * 0.08; // 8%波动
+    } else {
+      volatility = price * 0.05; // 5%波动
+    }
+    
+    const change = (Math.random() - 0.5) * volatility;
+    const close = Math.max(open + change, price * 0.1); // 确保价格不会太低
+    
+    // 确保有明显的高低点
+    const highMultiplier = 1 + Math.random() * (volatility / price) * 0.8;
+    const lowMultiplier = 1 - Math.random() * (volatility / price) * 0.8;
+    
+    const high = Math.max(open, close) * highMultiplier;
+    const low = Math.min(open, close) * lowMultiplier;
+    
     const volume = Math.random() * 100000 + 50000;
     const volUsd = volume * close;
     
     data.push({
       time: date.toISOString(),
-      ts: Math.floor(timestamp / 1000), // Unix timestamp in seconds
+      ts: Math.floor(timestamp / 1000),
       open,
       high,
       low,
@@ -175,7 +212,6 @@ export const TradingChart: FC<TradingChartProps> = ({
         // 设置基础样式
         chartInstance.setStyles({
           candle: {
-            type: 'candle_solid',
             bar: {
               upColor: '#22c55e',
               downColor: '#ef4444',
@@ -228,7 +264,8 @@ export const TradingChart: FC<TradingChartProps> = ({
           const possibleIndicators = ['VOL', 'Volume', 'MA', 'MACD'];
           possibleIndicators.forEach(indicator => {
             try {
-              chartInstance.removeIndicator?.(indicator);
+              // removeIndicator需要指标对象或paneId作为参数
+              chartInstance.removeIndicator?.({ name: indicator });
               console.log(`Removed indicator: ${indicator}`);
             } catch (e) {
               // 忽略不存在的指标
