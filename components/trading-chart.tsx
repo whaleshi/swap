@@ -216,6 +216,8 @@ export const TradingChart: FC<TradingChartProps> = ({
 
   // 初始化图表
   useEffect(() => {
+    console.log('Chart useEffect triggered:', { isMounted, init: !!init, chartRef: !!chartRef.current, chart: !!chart });
+    
     if (chartRef.current && !chart && isMounted && init) {
       console.log('Initializing chart...');
       
@@ -291,34 +293,116 @@ export const TradingChart: FC<TradingChartProps> = ({
           console.log('Indicator removal not supported');
         }
         
-        // 延迟清理多余的canvas元素
-        setTimeout(() => {
-          if (chartRef.current) {
-            const canvases = chartRef.current.querySelectorAll('canvas');
-            console.log(`Found ${canvases.length} canvas elements`);
-            
-            // 如果有多个canvas，隐藏空白的那个
-            if (canvases.length > 1) {
-              canvases.forEach((canvas, index) => {
-                // 检查canvas的父元素高度，如果太小可能是空白的
-                const parent = canvas.parentElement;
-                if (parent) {
-                  const rect = parent.getBoundingClientRect();
-                  console.log(`Canvas ${index} parent height: ${rect.height}px`);
-                  
-                  // 如果父元素高度很小，很可能是空白区域
-                  if (rect.height < 100 && index > 0) {
-                    parent.style.display = 'none';
-                    console.log(`Hiding canvas ${index} (likely empty)`);
-                  }
-                }
-              });
-            }
-          }
-        }, 500);
+        // 移除canvas清理逻辑，先让图表正常显示
+        console.log('Skipping canvas cleanup to allow chart to display');
         
         setChart(chartInstance);
         console.log('Chart styled and ready');
+        
+        // 延迟加载数据，确保容器完全渲染
+        setTimeout(() => {
+          if (chartInstance && chartRef.current) {
+            console.log('Loading test data...');
+            
+            // 强制设置容器尺寸
+            chartRef.current.style.width = '100%';
+            chartRef.current.style.height = '400px';
+            
+            // 再次检查容器尺寸
+            const containerRect = chartRef.current.getBoundingClientRect();
+            console.log('Container dimensions after setting:', containerRect);
+            
+            if (containerRect.width > 0 && containerRect.height > 0) {
+              // 创建简单的测试数据
+              const simpleData = [];
+              const basePrice = 0.004;
+              const now = Date.now();
+              
+              for (let i = 0; i < 5; i++) {
+                const timestamp = now - (5 - i) * 5 * 60 * 1000;
+                const price = basePrice + (Math.random() - 0.5) * 0.001;
+                
+                simpleData.push({
+                  timestamp: timestamp,
+                  open: price,
+                  high: price * 1.02,
+                  low: price * 0.98,
+                  close: price * (1 + (Math.random() - 0.5) * 0.01),
+                  volume: 100000
+                });
+              }
+              
+              console.log('Simple test data:', simpleData);
+              
+              // 直接使用简单数据，无需转换
+              console.log('Using simple data directly for chart');
+              
+              try {
+                chartInstance.applyNewData(simpleData);
+                console.log('Simple data applied successfully');
+                
+                setTimeout(() => {
+                  chartInstance.resize();
+                  console.log('Chart resized after simple data');
+                }, 100);
+                
+                // 设置价格显示
+                if (simpleData.length > 0) {
+                  const latest = simpleData[simpleData.length - 1];
+                  setCurrentPrice(latest.close);
+                  console.log('Price set from simple data:', latest.close);
+                }
+                
+              } catch (error) {
+                console.error('Error applying simple data:', error);
+              }
+            } else {
+              console.error('Container has no dimensions, retrying...', containerRect);
+              
+              // 重试机制
+              setTimeout(() => {
+                if (chartRef.current) {
+                  const retryRect = chartRef.current.getBoundingClientRect();
+                  console.log('Retry container dimensions:', retryRect);
+                  
+                  if (retryRect.width > 0 && retryRect.height > 0) {
+                    // 如果重试成功，应用简单数据
+                    const simpleData = [];
+                    const basePrice = 0.004;
+                    const now = Date.now();
+                    
+                    for (let i = 0; i < 5; i++) {
+                      const timestamp = now - (5 - i) * 5 * 60 * 1000;
+                      const price = basePrice + (Math.random() - 0.5) * 0.001;
+                      
+                      simpleData.push({
+                        timestamp: timestamp,
+                        open: price,
+                        high: price * 1.02,
+                        low: price * 0.98,
+                        close: price * (1 + (Math.random() - 0.5) * 0.01),
+                        volume: 100000
+                      });
+                    }
+                    
+                    try {
+                      chartInstance.applyNewData(simpleData);
+                      chartInstance.resize();
+                      console.log('Data applied successfully on retry');
+                      
+                      if (simpleData.length > 0) {
+                        const latest = simpleData[simpleData.length - 1];
+                        setCurrentPrice(latest.close);
+                      }
+                    } catch (error) {
+                      console.error('Error applying data on retry:', error);
+                    }
+                  }
+                }
+              }, 500);
+            }
+          }
+        }, 1000); // 增加延迟到1秒，确保DOM和样式完全渲染
       } else {
         console.error('Failed to create chart instance');
       }
@@ -522,11 +606,17 @@ export const TradingChart: FC<TradingChartProps> = ({
 
       <CardBody className="p-6">
         {/* KLineCharts专业K线图 */}
-        <div className="relative">
+        <div className="relative w-full" style={{ height: '400px', minHeight: '400px' }}>
           <div 
             ref={chartRef}
-            className="w-full h-96 lg:h-[500px] bg-background rounded-lg kline-chart-container"
-            style={{ minHeight: '400px' }}
+            className="w-full bg-background rounded-lg kline-chart-container"
+            style={{ 
+              width: '100%',
+              height: '100%',
+              minHeight: '400px',
+              position: 'relative',
+              display: 'block'
+            }}
           />
         
         {loading && (
