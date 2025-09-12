@@ -36,9 +36,9 @@ interface TradingChartProps {
 }
 
 // 转换数据格式为KLineCharts需要的格式
-const convertToKLineData = (data: CandleData[]): KLineData[] => {
+const convertToKLineData = (data: CandleData[]): any[] => {
   return data.map(item => {
-    const klineItem: KLineData = {
+    const klineItem: any = {
       timestamp: item.ts * 1000, // 转换为毫秒时间戳
       open: Number(item.open),
       high: Number(item.high),
