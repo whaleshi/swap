@@ -5,8 +5,18 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Tabs, Tab } from "@heroui/tabs";
-import { init, dispose } from 'klinecharts';
-import type { Chart, KLineData } from 'klinecharts';
+import dynamic from 'next/dynamic';
+
+// 动态导入KLineCharts，禁用SSR
+let init: any, dispose: any, Chart: any, KLineData: any;
+
+if (typeof window !== 'undefined') {
+  const klineCharts = require('klinecharts');
+  init = klineCharts.init;
+  dispose = klineCharts.dispose;
+  Chart = klineCharts.Chart;
+  KLineData = klineCharts.KLineData;
+}
 
 interface CandleData {
   time: string;
@@ -181,13 +191,19 @@ export const TradingChart: FC<TradingChartProps> = ({
   tokenSymbol = "M" 
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
-  const [chart, setChart] = useState<Chart | null>(null);
+  const [chart, setChart] = useState<any>(null);
   const [data, setData] = useState<CandleData[]>([]);
   const [selectedTimeframe, setSelectedTimeframe] = useState("5min");
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState(0);
   const [priceChangePercent, setPriceChangePercent] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // 检查是否在客户端
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // 时间框架到市场参数的映射
   const timeframeToMarket = {
@@ -200,7 +216,7 @@ export const TradingChart: FC<TradingChartProps> = ({
 
   // 初始化图表
   useEffect(() => {
-    if (chartRef.current && !chart) {
+    if (chartRef.current && !chart && isMounted && init) {
       console.log('Initializing chart...');
       
       // 使用最简单的初始化方式，然后手动配置
@@ -309,12 +325,12 @@ export const TradingChart: FC<TradingChartProps> = ({
     }
 
     return () => {
-      if (chart) {
+      if (chart && dispose) {
         dispose(chartRef.current!);
         setChart(null);
       }
     };
-  }, []);
+  }, [isMounted]);
 
   const loadData = async () => {
     setLoading(true);
@@ -427,6 +443,39 @@ export const TradingChart: FC<TradingChartProps> = ({
   ];
 
   const isPositive = priceChange >= 0;
+
+  // 服务器端渲染时显示加载占位符
+  if (!isMounted) {
+    return (
+      <Card className="w-full h-fit max-h-full shadow-lg border border-default-200">
+        <CardHeader className="flex flex-col gap-4 pb-4">
+          <div className="w-full">
+            <div className="flex items-center gap-4 mb-2">
+              <span className="text-2xl font-bold">{tokenSymbol}/USD</span>
+              <div className="w-16 h-6 bg-default-200 rounded animate-pulse"></div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <div className="w-32 h-8 bg-default-200 rounded animate-pulse"></div>
+              <div className="w-20 h-6 bg-default-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {['5分', '15分', '1时', '4时', '1日'].map((label, index) => (
+              <div key={index} className="w-12 h-8 bg-default-200 rounded animate-pulse"></div>
+            ))}
+          </div>
+        </CardHeader>
+        <CardBody className="p-6">
+          <div className="w-full h-96 lg:h-[500px] bg-default-100 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <span className="text-sm text-default-600">加载图表...</span>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full h-fit max-h-full shadow-lg border border-default-200">
