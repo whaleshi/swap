@@ -25,6 +25,7 @@ interface Token {
   address: string;
   decimals: number;
   isNative: boolean;
+  quoteMint?: string; // 新增: 指向其对应报价代币地址 (OKB/OKAY)
 }
 
 interface ModernSwapInterfaceProps {
@@ -156,8 +157,24 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
             setTokens(tokenList);
 
             if (tokenList.length >= 2) {
-              setFromToken(tokenList[0]);
-              setToToken(tokenList[1]);
+              if (chainId === 196) {
+                const okb = tokenList.find(t => t.symbol.toLowerCase() === 'okb');
+                const okay = tokenList.find(t => t.symbol.toLowerCase() === 'okay');
+                // 非报价候选
+                const nonQuote = tokenList.find(t => !['okb', 'okay'].includes(t.symbol.toLowerCase()));
+                // from 放非OKB/OKAY, to 放 OKB>OKAY
+                if (nonQuote && (okb || okay)) {
+                  setFromToken(nonQuote);
+                  setToToken(okb || okay || null);
+                } else {
+                  // 回退保持原来顺序
+                  setFromToken(tokenList[0]);
+                  setToToken(tokenList[1]);
+                }
+              } else {
+                setFromToken(tokenList[0]);
+                setToToken(tokenList[1]);
+              }
 
               // 如果钱包已连接，更新初始代币余额
               if (address && isConnected && swapApi) {
@@ -187,8 +204,44 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
               address: coin.address,
               decimals: coin.decimals,
               isNative: coin.isNative || false,
+              quoteMint: (coin as any).quoteMint || undefined, // 映射后端字段
             };
           });
+
+          // 按地址去重（防止相同 symbol 不同/相同地址重复）
+          const seen = new Set<string>();
+          tokenList = tokenList.filter(t => {
+            const key = (t.address || '').toLowerCase();
+            if (!key) return true; // 没地址的保留
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          // 按链设置优先顺序
+          const sortTokensByPriority = (list: Token[]): Token[] => {
+            // 定义不同链的优先符号顺序
+            let priority: string[] = [];
+            if (chainId === 196) { // X Layer
+              priority = ['OKB', 'OKAY'];
+            } else if (chainId === 2818 || chainId === 2810) { // Morph 主网 / 测试网
+              priority = ['BGB', 'M'];
+            }
+            if (priority.length === 0) return list;
+
+            const lowerPriority = priority.map(p => p.toLowerCase());
+            return [...list].sort((a, b) => {
+              const ai = lowerPriority.indexOf(a.symbol.toLowerCase());
+              const bi = lowerPriority.indexOf(b.symbol.toLowerCase());
+              const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+              const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+              if (av !== bv) return av - bv;
+              // 次级排序：保持原有顺序（稳定）——由于我们复制数组且 sort 是不稳定的，在比较相等时返回0即可
+              return 0;
+            });
+          };
+
+          tokenList = sortTokensByPriority(tokenList);
 
           console.log('Constructed tokenList:', tokenList);
           console.log('Setting tokens to:', tokenList);
@@ -216,8 +269,24 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
           // 设置默认代币
           if (tokenList.length >= 2) {
-            setFromToken(tokenList[0]);
-            setToToken(tokenList[1]);
+            if (chainId === 196) {
+              const okb = tokenList.find(t => t.symbol.toLowerCase() === 'okb');
+              const okay = tokenList.find(t => t.symbol.toLowerCase() === 'okay');
+              // 非报价候选
+              const nonQuote = tokenList.find(t => !['okb', 'okay'].includes(t.symbol.toLowerCase()));
+              // from 放非OKB/OKAY, to 放 OKB>OKAY
+              if (nonQuote && (okb || okay)) {
+                setFromToken(nonQuote);
+                setToToken(okb || okay || null);
+              } else {
+                // 回退保持原来顺序
+                setFromToken(tokenList[0]);
+                setToToken(tokenList[1]);
+              }
+            } else {
+              setFromToken(tokenList[0]);
+              setToToken(tokenList[1]);
+            }
 
             // 如果钱包已连接，更新初始代币余额
             if (address && isConnected && swapApi) {
@@ -408,40 +477,66 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
 
   // 根据交换规则筛选可用代币
   const getAvailableTokens = (isSelectingFrom: boolean, currentFromToken: Token | null, currentToToken: Token | null): Token[] => {
+    if (chainId === 196) {
+      // X Layer: 只允许 OKB/OKAY 作为报价(to)侧；from 侧禁止直接选 OKB/OKAY
+      if (isSelectingFrom) {
+        return allTokens.filter(t => !['okb', 'okay'].includes(t.symbol.toLowerCase()));
+      } else {
+        // to 侧：只展示 OKB / OKAY
+        return allTokens.filter(t => ['okb', 'okay'].includes(t.symbol.toLowerCase()));
+      }
+    }
+    // 原有规则（Morph等）
+    // 规则组：每组 (baseToken, hubToken)
+    const rulePairs = [
+      { base: 'bgb', hub: 'm' },
+      { base: 'okb', hub: 'okay' },
+    ];
+
+    const lowerTokens = allTokens.map(t => t.symbol.toLowerCase());
+    // 找出当前网络存在的规则组
+    const activePairs = rulePairs.filter(p => lowerTokens.includes(p.base) && lowerTokens.includes(p.hub));
+
+    // 如果没有任何规则组，放开全部
+    if (activePairs.length === 0) return allTokens;
+
+    const isHub = (sym: string) => activePairs.some(p => p.hub === sym);
+    const isBase = (sym: string) => activePairs.some(p => p.base === sym);
+    const getHubForBase = (sym: string) => activePairs.find(p => p.base === sym)?.hub;
+    const getBaseForHub = (sym: string) => activePairs.find(p => p.hub === sym)?.base;
+
     if (isSelectingFrom) {
-      // 选择from代币时，如果to侧没有选择代币，显示所有代币
-      if (!currentToToken) {
-        return allTokens;
-      }
+      if (!currentToToken) return allTokens;
+      const toSym = currentToToken.symbol.toLowerCase();
 
-      // 如果to侧有代币，根据to代币筛选from可选项
-      if (currentToToken.symbol.toLowerCase() === 'bgb') {
-        // 如果to是BGB，from只能选择M
-        return allTokens.filter(token => token.symbol.toLowerCase() === 'm');
-      } else if (currentToToken.symbol.toLowerCase() === 'm') {
-        // 如果to是M，from可以选择所有其他代币（但不能选M）
-        return allTokens.filter(token => token.symbol.toLowerCase() !== 'm');
-      } else {
-        // 如果to是其他代币，from只能选择M
-        return allTokens.filter(token => token.symbol.toLowerCase() === 'm');
+      // to 是某个 base（如 bgb / okb） => from 只能是对应 hub（m / okay）
+      if (isBase(toSym)) {
+        const hub = getHubForBase(toSym);
+        return allTokens.filter(t => t.symbol.toLowerCase() === hub);
       }
+      // to 是某个 hub（m / okay）=> from 不能是该 hub，本组内其它 base + 其它普通代币都允许
+      if (isHub(toSym)) {
+        return allTokens.filter(t => t.symbol.toLowerCase() !== toSym);
+      }
+      // 其它普通代币 => 只能走任一 hub 中转（选择任一 hub）
+      const hubSymbols = activePairs.map(p => p.hub);
+      return allTokens.filter(t => hubSymbols.includes(t.symbol.toLowerCase()));
     } else {
-      // 选择to代币时，如果from侧没有选择代币，显示所有代币
-      if (!currentFromToken) {
-        return allTokens;
-      }
+      if (!currentFromToken) return allTokens;
+      const fromSym = currentFromToken.symbol.toLowerCase();
 
-      // 如果from侧有代币，根据from代币筛选to可选项
-      if (currentFromToken.symbol.toLowerCase() === 'bgb') {
-        // 如果from是BGB，to只能选择M
-        return allTokens.filter(token => token.symbol.toLowerCase() === 'm');
-      } else if (currentFromToken.symbol.toLowerCase() === 'm') {
-        // 如果from是M，to可以选择所有其他代币（但不能选M）
-        return allTokens.filter(token => token.symbol.toLowerCase() !== 'm');
-      } else {
-        // 如果from是其他代币，to只能选择M
-        return allTokens.filter(token => token.symbol.toLowerCase() === 'm');
+      // from 是某个 base => to 只能对应 hub
+      if (isBase(fromSym)) {
+        const hub = getHubForBase(fromSym);
+        return allTokens.filter(t => t.symbol.toLowerCase() === hub);
       }
+      // from 是某个 hub => to 不能是该 hub
+      if (isHub(fromSym)) {
+        return allTokens.filter(t => t.symbol.toLowerCase() !== fromSym);
+      }
+      // from 是普通代币 => to 只能是任一 hub
+      const hubSymbols = activePairs.map(p => p.hub);
+      return allTokens.filter(t => hubSymbols.includes(t.symbol.toLowerCase()));
     }
   };
 
@@ -919,6 +1014,57 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
     }
   };
 
+  // 自动匹配报价代币（X Layer）
+  useEffect(() => {
+    if (chainId !== 196) return; // 仅 X Layer
+    if (!fromToken || !allTokens.length) return;
+
+    // 如果当前 toToken 已经是 OKB/OKAY 并且 fromToken 不是 OKB/OKAY，保持即可
+    const isQuote = (sym?: string) => !!sym && ['okb', 'okay'].includes(sym.toLowerCase());
+
+    if (isQuote(fromToken.symbol)) {
+      // 不允许 from 为 OKB/OKAY（由选择器已经限制，防御性处理）
+      const replacement = allTokens.find(t => !isQuote(t.symbol));
+      if (replacement) setFromToken(prev => prev && prev.symbol === fromToken.symbol ? replacement : prev);
+      return;
+    }
+
+    // 目标报价地址优先使用 fromToken.quoteMint
+    let targetAddress = fromToken.quoteMint?.toLowerCase();
+
+    // 可用OKB/OKAY列表
+    const okb = allTokens.find(t => t.symbol.toLowerCase() === 'okb');
+    const okay = allTokens.find(t => t.symbol.toLowerCase() === 'okay');
+
+    // 如果 quoteMint 未提供或无法匹配，fallback: OKB > OKAY
+    let desiredQuoteToken: Token | null = null;
+    if (targetAddress) {
+      desiredQuoteToken = [okb, okay].filter(Boolean).find(t => t!.address.toLowerCase() === targetAddress) || null;
+    }
+    if (!desiredQuoteToken) {
+      desiredQuoteToken = okb || okay || null;
+    }
+
+    if (!desiredQuoteToken) return;
+
+    // 如果 toToken 不等于期望的报价代币，则替换
+    if (!toToken || toToken.address.toLowerCase() !== desiredQuoteToken.address.toLowerCase()) {
+      setToToken(desiredQuoteToken);
+    }
+  }, [fromToken, allTokens, chainId]);
+
+  // 安全回退：确保 X Layer 的 toToken 一直是 OKB/OKAY
+  useEffect(() => {
+    if (chainId !== 196) return;
+    if (!allTokens.length) return;
+    const isQuote = (sym?: string) => !!sym && ['okb', 'okay'].includes(sym.toLowerCase());
+    if (!toToken || !isQuote(toToken.symbol)) {
+      const okb = allTokens.find(t => t.symbol.toLowerCase() === 'okb');
+      const okay = allTokens.find(t => t.symbol.toLowerCase() === 'okay');
+      const fallback = okb || okay || null;
+      if (fallback) setToToken(fallback);
+    }
+  }, [toToken, allTokens, chainId]);
 
   // 如果网络不支持，显示网络切换提示
   if (!networkInfo) {
@@ -1404,9 +1550,9 @@ export const ModernSwapInterface: FC<ModernSwapInterfaceProps> = ({
             </div>
 
             <div className="space-y-1 max-h-96 overflow-y-auto">
-              {filteredTokens.map((token) => (
+              {filteredTokens.map((token, idx) => (
                 <Button
-                  key={token.symbol}
+                  key={(token.address || token.id || token.symbol) + '-' + idx}
                   variant="light"
                   onPress={() => handleTokenSelect(token)}
                   className="w-full justify-start p-4 h-auto hover:bg-default-100/80 transition-colors"

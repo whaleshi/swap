@@ -78,8 +78,8 @@ export const networkConfig = {
         isTestnet: false,
         faucet: null,
         supportedTokens: ["OKB", "USDT", "USDC", "WOKB"],
-        apiEndpoint: null,
-        supportsSwap: false,
+    apiEndpoint: "https://gate.game.com",
+        supportsSwap: true,
     },
     [networks.morphTestnet.id]: {
         name: "Morph Testnet",
@@ -141,18 +141,18 @@ export const tokenConfig = {
             symbol: "OKB",
             name: "OKB",
             decimals: 18,
-            address: "0x0000000000000000000000000000000000000000", // 原生代币
+            address: "0xe538905cf8410324e03A5A23C1c177a474D59b2b",
             icon: "⚡",
-            isNative: true,
-        },
-        USDT: {
-            symbol: "USDT",
-            name: "Tether USD",
-            decimals: 6,
-            address: "0x...", // 需要实际合约地址
-            icon: "💚",
             isNative: false,
         },
+        OKAY: {
+            symbol: "OKAY",
+            name: "OKAY",
+            decimals: 18,
+            address: "0x8854b281cdf5940ebd4a753f8d37f49775058e03",
+            icon: "�",
+            isNative: false,
+        }
     },
 
     // Morph 测试网代币

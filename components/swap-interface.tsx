@@ -203,8 +203,8 @@ export const SwapInterface: FC = () => {
             className="w-full font-semibold text-lg h-14 shadow-lg"
             isDisabled={!fromAmount || Number(fromAmount) === 0}
           >
-            {!fromAmount || Number(fromAmount) === 0 
-              ? "输入金额" 
+            {!fromAmount || Number(fromAmount) === 0
+              ? "输入金额"
               : `交换 ${fromToken.symbol} 到 ${toToken.symbol}`
             }
           </Button>
@@ -219,9 +219,9 @@ export const SwapInterface: FC = () => {
           </ModalHeader>
           <ModalBody className="pb-6">
             <div className="space-y-2">
-              {tokens.map((token) => (
+              {tokens.map((token, idx) => (
                 <Button
-                  key={token.symbol}
+                  key={token.symbol + '-' + idx}
                   variant="light"
                   onPress={() => handleTokenSelect(token)}
                   className="w-full justify-start p-4 h-auto"

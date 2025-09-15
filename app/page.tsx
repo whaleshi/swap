@@ -2,7 +2,7 @@
 
 import { ModernSwapInterface } from "@/components/modern-swap-interface";
 import { TradingChart } from "@/components/trading-chart";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 export default function Home() {
   const [showChart, setShowChart] = useState(false);
@@ -20,14 +20,17 @@ export default function Home() {
     console.log("Refreshing data...");
   };
 
-  const handleTokenChange = (tokenAddress: string, tokenSymbol: string) => {
-    setSelectedToken({ address: tokenAddress, symbol: tokenSymbol });
-  };
+  const handleTokenChange = useCallback((tokenAddress: string, tokenSymbol: string) => {
+    setSelectedToken(prev => {
+      if (prev.address === tokenAddress && prev.symbol === tokenSymbol) return prev; // 避免无变化更新
+      return { address: tokenAddress, symbol: tokenSymbol };
+    });
+  }, []);
   return (
     <div className="min-h-screen w-full">
       {/* 移动端布局 */}
       <div className="lg:hidden w-full p-4 space-y-6">
-        <ModernSwapInterface 
+        <ModernSwapInterface
           onToggleChart={handleToggleChart}
           onRefreshData={handleRefreshData}
           onTokenChange={handleTokenChange}
@@ -44,10 +47,10 @@ export default function Home() {
               <TradingChart tokenAddress={selectedToken.address} tokenSymbol={selectedToken.symbol} />
             </div>
           )}
-          
+
           {/* 右侧 Swap */}
           <div className={`${showChart ? 'w-[520px]' : 'flex-1 max-w-lg mx-auto'} p-4 pt-6`}>
-            <ModernSwapInterface 
+            <ModernSwapInterface
               onToggleChart={handleToggleChart}
               onRefreshData={handleRefreshData}
               onTokenChange={handleTokenChange}
